@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Magma Miner - 2D Cavern Shooter Game",
   "scripts": {
-    "start": "node server.js"
+    "start": "node local_server.js"
   },
   "dependencies": {}
 }
