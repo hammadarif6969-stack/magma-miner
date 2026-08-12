@@ -480,7 +480,12 @@ function submitGameScoreBackend(finalScore) {
     if (menuNameEl && modalNameEl) {
         modalNameEl.value = menuNameEl.value;
     }
-    const playerName = (menuNameEl && menuNameEl.value.trim()) ? menuNameEl.value.trim() : 'Miner_1';
+    let playerName = 'Miner_1';
+    if (menuNameEl && typeof menuNameEl.value === 'string' && menuNameEl.value.trim()) {
+        playerName = menuNameEl.value.trim();
+    } else if (modalNameEl && typeof modalNameEl.value === 'string' && modalNameEl.value.trim()) {
+        playerName = modalNameEl.value.trim();
+    }
     const waveNum = wave2Active ? 2 : 1;
     const bossesCount = (firstBossDefeated ? 1 : 0) + (minotaurBossTriggered && minotaurBoss.health <= 0 ? 1 : 0);
     const duration = Math.max(1, (Date.now() - gameStartTime) / 1000);
