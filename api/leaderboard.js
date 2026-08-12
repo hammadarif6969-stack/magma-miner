@@ -1,20 +1,50 @@
 const path = require('path');
 const fs = require('fs');
 
-async function handleKV(command) {
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-        return null;
-    }
-    const res = await fetch(process.env.KV_REST_API_URL, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${process.env.KV_REST_API_TOKEN}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(command)
+const https = require('https');
+
+function handleKV(command) {
+    return new Promise((resolve) => {
+        if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+            resolve(null);
+            return;
+        }
+        try {
+            const url = new URL(process.env.KV_REST_API_URL);
+            const options = {
+                hostname: url.hostname,
+                port: 443,
+                path: url.pathname + url.search,
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + process.env.KV_REST_API_TOKEN,
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            const req = https.request(options, (res) => {
+                let body = '';
+                res.on('data', (chunk) => { body += chunk; });
+                res.on('end', () => {
+                    try {
+                        const data = JSON.parse(body);
+                        resolve(data.result);
+                    } catch (e) {
+                        resolve(null);
+                    }
+                });
+            });
+
+            req.on('error', () => {
+                resolve(null);
+            });
+
+            req.write(JSON.stringify(command));
+            req.end();
+        } catch (err) {
+            resolve(null);
+        }
     });
-    const data = await res.json();
-    return data.result;
 }
 
 module.exports = async (req, res) => {
