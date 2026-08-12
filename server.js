@@ -7,9 +7,11 @@ const PORT = 8080;
 const ROOT_DIR = __dirname;
 const CSV_PATH = path.join(ROOT_DIR, 'leaderboard_all_time.csv');
 
-// Initialize CSV file if it doesn't exist
-if (!fs.existsSync(CSV_PATH)) {
-    fs.writeFileSync(CSV_PATH, 'timestamp,player_name,score,wave_reached,bosses_defeated,duration_sec\n', 'utf-8');
+// Initialize CSV file if it doesn't exist (skip on Vercel read-only filesystem)
+if (!process.env.VERCEL) {
+    if (!fs.existsSync(CSV_PATH)) {
+        fs.writeFileSync(CSV_PATH, 'timestamp,player_name,score,wave_reached,bosses_defeated,duration_sec\n', 'utf-8');
+    }
 }
 
 // MIME types for static file serving
@@ -151,7 +153,9 @@ const server = http.createServer((req, res) => {
     });
 });
 
-server.listen(PORT, () => {
-    console.log(`🚀 MAGMA MINER SERVER ACTIVE ON HTTP://LOCALHOST:${PORT}`);
-    console.log(`📊 ALL-TIME LEADERBOARD CSV PATH: ${CSV_PATH}`);
-});
+if (!process.env.VERCEL) {
+    server.listen(PORT, () => {
+        console.log(`🚀 MAGMA MINER SERVER ACTIVE ON HTTP://LOCALHOST:${PORT}`);
+        console.log(`📊 ALL-TIME LEADERBOARD CSV PATH: ${CSV_PATH}`);
+    });
+}
