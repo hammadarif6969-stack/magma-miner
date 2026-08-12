@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
         const list = await handleKV(["LRANGE", "magma_miner_all_scores", "0", "-1"]);
         
         let records = [];
-        if (list !== null) {
+        if (list && Array.isArray(list)) {
             records = list.map(item => JSON.parse(item));
         } else {
             // Local fallback reading from /tmp/leaderboard_all_time.csv

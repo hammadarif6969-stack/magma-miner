@@ -54,7 +54,7 @@ module.exports = async (req, res) => {
         // Try Vercel KV
         const kvResult = await handleKV(["RPUSH", "magma_miner_all_scores", JSON.stringify(record)]);
 
-        if (kvResult !== null) {
+        if (kvResult !== null && kvResult !== undefined && typeof kvResult === 'number') {
             res.status(200).json({ success: true, db: 'kv', timestamp });
         } else {
             // Local fallback (works for session but not persistent on serverless)

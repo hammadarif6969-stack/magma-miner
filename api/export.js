@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
         
         let csvContent = 'timestamp,player_name,score,wave_reached,bosses_defeated,duration_sec\n';
 
-        if (list !== null) {
+        if (list && Array.isArray(list)) {
             const records = list.map(item => JSON.parse(item));
             records.forEach(rec => {
                 csvContent += `${rec.timestamp},${rec.player_name},${rec.score},${rec.wave_reached},${rec.bosses_defeated},${rec.duration_sec.toFixed(1)}\n`;
