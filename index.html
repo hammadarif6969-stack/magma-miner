@@ -468,6 +468,10 @@ function fetchTop10Leaderboard() {
         })
         .catch(err => {
             console.log('Leaderboard fetch error:', err);
+            const body = document.getElementById('leaderboardBody');
+            if (body) {
+                body.innerHTML = '<tr><td colspan="5" style="color: #ffaa33;">Leaderboard Server Offline (Local Play)</td></tr>';
+            }
         });
 }
 
@@ -507,9 +511,13 @@ function submitGameScoreBackend(finalScore) {
     .then(data => {
         console.log('Score logged to backend CSV:', data);
         fetchTop10Leaderboard();
-        showLeaderboard();
     })
-    .catch(err => console.log('Score submit error:', err));
+    .catch(err => {
+        console.log('Score submit error:', err);
+    })
+    .finally(() => {
+        showLeaderboard();
+    });
 }
 
 function showLeaderboard() {
