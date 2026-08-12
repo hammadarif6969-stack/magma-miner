@@ -325,6 +325,19 @@ button:hover {
     margin-bottom: 8px; letter-spacing: 2px; font-family: 'Space Grotesk', system-ui, sans-serif;
 }
 
+
+#soundToggleBtn {
+    position: absolute; bottom: 20px; right: 20px; width: 50px; height: 50px;
+    border-radius: 50%; background: rgba(15, 10, 25, 0.85); border: 2px solid #ff5a2b;
+    color: #ffaa33; font-size: 22px; cursor: pointer; z-index: 10000;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 15px rgba(255, 90, 43, 0.4); transition: all 0.2s ease; outline: none;
+}
+#soundToggleBtn:hover {
+    transform: scale(1.1); box-shadow: 0 0 25px rgba(255, 90, 43, 0.7);
+    border-color: #ffaa33; color: #fff;
+}
+
 </style>
 </head>
 
@@ -407,6 +420,9 @@ button:hover {
         <input type="text" id="menuPlayerName" placeholder="PILOT HANDLE" value="Miner_1" maxlength="16">
     </div>
     <button id="start">DESCEND INTO THE SHAFT</button>
+    <div style="margin-top: 10px;">
+        <button class="lb-btn" onclick="showLeaderboard()" style="background: linear-gradient(135deg, #ffaa33, #d88000); border: none; padding: 10px 20px; font-weight: bold; border-radius: 6px; cursor: pointer; color: #fff; font-family: 'Space Grotesk', system-ui, sans-serif; letter-spacing: 1px;">🏆 VIEW LEADERBOARD</button>
+    </div>
 
     <div class="controls">
         WASD / ARROWS — MOVE<br>
@@ -426,6 +442,107 @@ let W;
 let H;
 let lastTime = 0;
 let gameStarted = false;
+
+// --- LEADERBOARD & BACKEND SCORE RECORDING SYSTEM ---
+let gameStartTime = Date.now();
+let hasSubmittedScore = false;
+
+function fetchTop10Leaderboard() {
+    fetch('/api/leaderboard')
+        .then(res => res.json())
+        .then(data => {
+            const body = document.getElementById('leaderboardBody');
+            if (!body) return;
+            body.innerHTML = '';
+            const top10 = data.top10 || [];
+            if (top10.length === 0) {
+                body.innerHTML = '<tr><td colspan="5">No recorded games yet. Play first!</td></tr>';
+                return;
+            }
+            top10.forEach((rec, idx) => {
+                const tr = document.createElement('tr');
+                const timeStr = rec.timestamp ? new Date(rec.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'N/A';
+                tr.innerHTML = `<td>${idx + 1}</td><td>${rec.player_name}</td><td>${rec.score.toLocaleString()}</td><td>${rec.wave_reached}</td><td>${timeStr}</td>`;
+                body.appendChild(tr);
+            });
+        })
+        .catch(err => {
+            console.log('Leaderboard fetch error:', err);
+        });
+}
+
+function submitGameScoreBackend(finalScore) {
+    if (hasSubmittedScore) return;
+    hasSubmittedScore = true;
+
+    const menuNameEl = document.getElementById('menuPlayerName');
+    const modalNameEl = document.getElementById('playerNameInput');
+    if (menuNameEl && modalNameEl) {
+        modalNameEl.value = menuNameEl.value;
+    }
+    const playerName = (menuNameEl && menuNameEl.value.trim()) ? menuNameEl.value.trim() : 'Miner_1';
+    const waveNum = wave2Active ? 2 : 1;
+    const bossesCount = (firstBossDefeated ? 1 : 0) + (minotaurBossTriggered && minotaurBoss.health <= 0 ? 1 : 0);
+    const duration = Math.max(1, (Date.now() - gameStartTime) / 1000);
+
+    const payload = {
+        player_name: playerName,
+        score: finalScore,
+        wave_reached: waveNum,
+        bosses_defeated: bossesCount,
+        duration_sec: duration
+    };
+
+    fetch('/api/scores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(data => {
+        console.log('Score logged to backend CSV:', data);
+        fetchTop10Leaderboard();
+        showLeaderboard();
+    })
+    .catch(err => console.log('Score submit error:', err));
+}
+
+function showLeaderboard() {
+    const modal = document.getElementById('leaderboardModal');
+    if (modal) modal.classList.add('show');
+    fetchTop10Leaderboard();
+}
+
+function closeLeaderboard() {
+    const modal = document.getElementById('leaderboardModal');
+    if (modal) modal.classList.remove('show');
+    
+    // Return to menu screen if dead/not started
+    if (!gameStarted || player.health <= 0) {
+        player.health = 100;
+        document.getElementById("menu").classList.remove("hidden");
+        document.querySelector(".title").innerHTML = "SUIT <span>BREACH</span>";
+        document.querySelector(".subtitle").textContent = "DEPTH: " + Math.floor(depth) + "m · SCORE: " + score;
+        document.getElementById("start").textContent = "DIVE AGAIN";
+    }
+}
+
+// --- SOUND TOGGLE SYSTEM ---
+let soundMuted = false;
+function toggleSound() {
+    soundMuted = !soundMuted;
+    const btn = document.getElementById("soundToggleBtn");
+    if (btn) {
+        btn.textContent = soundMuted ? "🔇" : "🔊";
+        btn.style.borderColor = soundMuted ? "#777" : "#ff5a2b";
+        btn.style.color = soundMuted ? "#aaa" : "#ffaa33";
+    }
+    
+    // Mute/Unmute BGM Audio
+    if (bgmAudio) {
+        bgmAudio.muted = soundMuted;
+    }
+}
 
 function resize() {
 
@@ -510,6 +627,7 @@ bgmAudio.volume = 0.45;
 
 function startBGM() {
     initAudio();
+    bgmAudio.muted = soundMuted;
     bgmAudio.play().catch(() => {});
 }
 
@@ -519,6 +637,7 @@ document.addEventListener("keydown", startBGM, { once: true });
 document.addEventListener("keydown", initAudio, { once: true });
 
 function playShootSound() {
+    if (soundMuted) return;
     if (!audioCtx) return;
     try {
         const osc = audioCtx.createOscillator();
@@ -536,6 +655,7 @@ function playShootSound() {
 }
 
 function playEnemyAttackSound(isDemon) {
+    if (soundMuted) return;
     if (!audioCtx) return;
     try {
         const osc = audioCtx.createOscillator();
@@ -555,6 +675,7 @@ function playEnemyAttackSound(isDemon) {
 }
 
 function playEnemyHitSound() {
+    if (soundMuted) return;
     if (!audioCtx) return;
     try {
         const bufferSize = audioCtx.sampleRate * 0.08;
@@ -577,6 +698,7 @@ function playEnemyHitSound() {
 }
 
 function playPickupSound() {
+    if (soundMuted) return;
     if (!audioCtx) return;
     try {
         const now = audioCtx.currentTime;
@@ -3741,20 +3863,8 @@ wave2Warning = { pending: false, shown: false, timer: 0 };
 
 
     if (player.health <= 0) {
-
         gameStarted = false;
-
-        document.getElementById("menu").classList.remove("hidden");
-
-        document.querySelector(".title").innerHTML =
-            "SUIT <span>BREACH</span>";
-
-        document.querySelector(".subtitle").textContent =
-            "DEPTH: " + Math.floor(depth) + "m · SCORE: " + score;
-
-        document.getElementById("start").textContent =
-            "DIVE AGAIN";
-
+        submitGameScoreBackend(score);
     }
 
 }
@@ -4147,6 +4257,8 @@ document.getElementById("start").addEventListener(
 
         enemiesSpawnedCount = 0;
         enemiesKilledCount = 0;
+        gameStartTime = Date.now();
+        hasSubmittedScore = false;
         bossTriggered = false;
 
         boss2.active = false;
@@ -4252,6 +4364,10 @@ window.addEventListener("keydown", (e) => {
     <button class="lb-btn" onclick="closeLeaderboard()">Resume / Close</button>
     <a class="lb-btn lb-btn-export" href="/api/export" download="magma_miner_leaderboard_all_time.csv">📥 Export All Scores CSV</a>
 </div>
+
+
+<!-- Persistent Sound Toggle Button -->
+<button id="soundToggleBtn" onclick="toggleSound()">🔊</button>
 
 </body>
 </html>
