@@ -1197,19 +1197,37 @@ let bossTriggered = false;
 const keys = {};
 
 window.addEventListener("keydown", e => {
+    // Ignore keys if typing in pilot handle inputs
+    if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) {
+        return;
+    }
 
-    keys[e.key.toLowerCase()] = true;
+    const keyLower = e.key.toLowerCase();
+    keys[keyLower] = true;
+
+    // Prevent default actions for standard game keys (like page scrolling on Space/Arrows)
+    const gameControlKeys = ["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "space", " "];
+    if (gameControlKeys.includes(keyLower) || e.code === "Space") {
+        e.preventDefault();
+    }
 
     if (e.code === "Space") {
         fire();
     }
-
 });
 
 window.addEventListener("keyup", e => {
-
+    if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) {
+        return;
+    }
     keys[e.key.toLowerCase()] = false;
+});
 
+// Clear keys map when browser window loses focus to prevent key stuck bugs
+window.addEventListener("blur", () => {
+    for (const key in keys) {
+        keys[key] = false;
+    }
 });
 
 
@@ -4272,6 +4290,8 @@ document.getElementById("start").addEventListener(
         enemiesKilledCount = 0;
         gameStartTime = Date.now();
         hasSubmittedScore = false;
+        // Reset keys map on start
+        for (const k in keys) { keys[k] = false; }
         bossTriggered = false;
 
         boss2.active = false;
